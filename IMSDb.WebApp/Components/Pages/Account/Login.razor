@@ -1,20 +1,22 @@
-﻿@page "/login"
+@page "/login"
+
 @using IMSDb.WebApp.Data
 @using IMSDb.WebApp.ViewModels
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.EntityFrameworkCore
 
-@inject MyAppDbContext MyAppDbContext
-@inject IHttpContextAccessor HttpContextAccessor
+@inject IDbContextFactory<MyAppDbContext> DbFactory
 @inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
 
 <div class="row">
 
     <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
 
         <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm" method="post">
-            <AntiforgeryToken /> 
             <DataAnnotationsValidator />
 
             <div class="mb-3 text-center flex-column">
@@ -68,6 +70,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
     [SupplyParameterFromForm]
     public LoginViewModel Model { get; set; } = new();
 
@@ -75,13 +80,19 @@
 
     private async Task Authenticate()
     {
-        var userAccount = MyAppDbContext.UserAccounts
+        using var context = DbFactory.CreateDbContext();
+        var userAccount = context.UserAccounts
             .Where(x => x.UserName == Model.UserName)
             .FirstOrDefault();
 
-        if (userAccount == null || userAccount.Password != Model.Password)
+        if (userAccount == null)
         {
-            errorMessage = "Invalid User Name or Password";
+            errorMessage = $"User '{Model.UserName}' not found in DB.";
+            return;
+        }
+        else if (userAccount.Password != Model.Password)
+        {
+            errorMessage = $"Invalid Password. DB Password is '{userAccount.Password}', you entered '{Model.Password}'";
             return;
         }
 
@@ -98,7 +109,7 @@
 
         var principal = new ClaimsPrincipal(identity);
 
-        await HttpContextAccessor.HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
         Navigation.NavigateTo("/");
     }

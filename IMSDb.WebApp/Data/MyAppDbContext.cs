@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,5 +18,20 @@ namespace IMSDb.WebApp.Data
         public DbSet<IMSDb.WebApp.Components.Models.Product> Product { get; set; } = default!;
 
         public DbSet<UserAccount> UserAccounts { get; set; } = default!;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<UserAccount>().HasData(
+                new UserAccount
+                {
+                    Id = 1,
+                    UserName = "admin",
+                    Password = "admin",
+                    Role = "Administrator"
+                }
+            );
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using IMSDb.WebApp.Components;
+using IMSDb.WebApp.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using IMSDb.WebApp.Data;
@@ -54,13 +54,13 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
-// Antiforgery middleware must be present when endpoints have antiforgery metadata
-app.UseAntiforgery();
-
-
 // Enable authentication/authorization middleware so SignInAsync and auth policies work
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
+
+// Antiforgery middleware must be present when endpoints have antiforgery metadata
+app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
