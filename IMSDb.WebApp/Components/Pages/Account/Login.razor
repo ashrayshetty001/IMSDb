@@ -13,7 +13,7 @@
 
     <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
 
-        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm">
+        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm" method="post">
 
             <DataAnnotationsValidator />
 
@@ -71,7 +71,7 @@
 </div>
 
 @code {
-
+    [SupplyParameterFromForm]
     public LoginViewModel Model { get; set; } = new();
 
     private string? errorMessage;
