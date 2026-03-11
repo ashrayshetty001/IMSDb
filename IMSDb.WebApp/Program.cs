@@ -15,6 +15,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // Register antiforgery services (required for interactive server components endpoints)
 builder.Services.AddAntiforgery();
 
+
 // Provide access to the current HttpContext when needed
 builder.Services.AddHttpContextAccessor();
 
@@ -55,6 +56,7 @@ app.UseStaticFiles();
 
 // Antiforgery middleware must be present when endpoints have antiforgery metadata
 app.UseAntiforgery();
+
 
 // Enable authentication/authorization middleware so SignInAsync and auth policies work
 app.UseAuthentication();
