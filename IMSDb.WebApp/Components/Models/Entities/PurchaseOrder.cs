@@ -26,6 +26,6 @@ namespace IMSDb.WebApp.Components.Models.Entities
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1.")]
         public int Quantity { get; set; }
 
-        public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+        public DateTime OrderDate { get; set; } = DateTime.Now;
     }
 }

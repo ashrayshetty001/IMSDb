@@ -121,11 +121,13 @@
     private async Task AddOrder()
     {
         using var context = DbFactory.CreateDbContext();
-        
-        // When a custom PO is made, we do not auto-save anything until Db validation passes
+
+        // Set current date
+        NewOrder.OrderDate = DateTime.Now;
+
         context.PurchaseOrders.Add(NewOrder);
-        
-        // Also update product stock
+
+        // Update product stock
         var product = await context.Product.FindAsync(NewOrder.ProductId);
         if (product != null)
         {
@@ -133,7 +135,7 @@
         }
 
         await context.SaveChangesAsync();
-        
+
         NewOrder = new(); // Reset form
         await LoadData(); // Refresh list
     }
