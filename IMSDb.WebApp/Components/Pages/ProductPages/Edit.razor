@@ -1,4 +1,6 @@
 @page "/products/edit"
+@attribute [Authorize(Roles = "Administrator")]
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
 @using IMSDb.WebApp.Components.Models.Entities
@@ -42,7 +44,7 @@ else
                     <ValidationMessage For="() => Product.Price" class="text-danger" />
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
-                <button><a href="/products" class="btn btn-outline-secondary">Back to List</a></button>
+                <a href="/products" class="btn btn-outline-secondary">Back to List</a>
             </EditForm>
         </div>
     </div>

@@ -25,6 +25,6 @@ namespace IMSDb.WebApp.Components.Models.Entities
 
         public int Quantity { get; set; }
 
-        public float Price { get; set; }
+        public double Price { get; set; }
     }
 }
