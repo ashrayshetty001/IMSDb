@@ -101,7 +101,7 @@
 
         var principal = new ClaimsPrincipal(identity);
 
-        await HttpContextAccessor.HttpContext!.SignInAsync(principal);
+        await HttpContextAccessor.HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
         Navigation.NavigateTo("/");
     }
