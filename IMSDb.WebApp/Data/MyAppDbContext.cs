@@ -19,6 +19,10 @@ namespace IMSDb.WebApp.Data
 
         public DbSet<UserAccount> UserAccounts { get; set; } = default!;
 
+        public DbSet<ProductAudit> ProductAudits { get; set; } = default!;
+        public DbSet<Supplier> Suppliers { get; set; } = default!;
+        public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = default!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

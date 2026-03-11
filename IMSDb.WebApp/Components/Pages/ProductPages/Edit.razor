@@ -1,8 +1,12 @@
-﻿@page "/products/edit"
+@page "/products/edit"
 @using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
+@using IMSDb.WebApp.Components.Models.Entities
+@using Microsoft.AspNetCore.Components.Authorization
+
 @inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Edit</PageTitle>
 
@@ -70,6 +74,19 @@ else
     {
         using var context = DbFactory.CreateDbContext();
         context.Attach(Product!).State = EntityState.Modified;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User.Identity?.Name ?? "Unknown";
+
+        context.ProductAudits.Add(new ProductAudit
+        {
+            ProductId = Product!.Id,
+            ProductName = Product.Name,
+            Action = "Update",
+            ChangedBy = user,
+            Quantity = Product.Quantity,
+            Price = (float)Product.Price
+        });
 
         try
         {

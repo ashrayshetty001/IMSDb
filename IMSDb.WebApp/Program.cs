@@ -12,11 +12,11 @@ builder.Services.AddQuickGridEntityFrameworkAdapter();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Register antiforgery services (required for interactive server components endpoints)
+
 builder.Services.AddAntiforgery();
 
 
-// Provide access to the current HttpContext when needed
+
 builder.Services.AddHttpContextAccessor();
 
 // Add services to the container.

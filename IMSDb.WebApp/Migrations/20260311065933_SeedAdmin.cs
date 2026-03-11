@@ -4,10 +4,10 @@
 
 namespace IMSDb.WebApp.Migrations
 {
-    /// <inheritdoc />
+    
     public partial class SeedAdmin : Migration
     {
-        /// <inheritdoc />
+       
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.InsertData(
@@ -16,7 +16,7 @@ namespace IMSDb.WebApp.Migrations
                 values: new object[] { 1, "admin", "Administrator", "admin" });
         }
 
-        /// <inheritdoc />
+        
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DeleteData(

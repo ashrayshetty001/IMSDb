@@ -1,0 +1,117 @@
+@page "/suppliers"
+@using Microsoft.EntityFrameworkCore
+@using IMSDb.WebApp.Components.Models.Entities
+@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+
+<PageTitle>Suppliers</PageTitle>
+
+<h1>Manage Suppliers</h1>
+<p>Keep track of the vendors who supply your products.</p>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-light">
+        <strong>Add New Supplier</strong>
+    </div>
+    <div class="card-body">
+        <EditForm Model="NewSupplier" OnValidSubmit="AddSupplier" FormName="AddSupplierForm" method="post" Enhance>
+            <DataAnnotationsValidator />
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Supplier Name</label>
+                    <InputText @bind-Value="NewSupplier.Name" class="form-control" placeholder="e.g. Dell" />
+                    <ValidationMessage For="() => NewSupplier.Name" class="text-danger" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Contact Person</label>
+                    <InputText @bind-Value="NewSupplier.ContactPerson" class="form-control" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Phone</label>
+                    <InputText @bind-Value="NewSupplier.Phone" class="form-control" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Email</label>
+                    <InputText @bind-Value="NewSupplier.Email" class="form-control" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Address</label>
+                    <InputText @bind-Value="NewSupplier.Address" class="form-control" />
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Save Supplier</button>
+        </EditForm>
+    </div>
+</div>
+
+<h3>Vendor List</h3>
+<table class="table table-striped table-hover mt-3">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Contact Person</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Address</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (suppliers == null)
+        {
+            <tr><td colspan="6">Loading...</td></tr>
+        }
+        else if (!suppliers.Any())
+        {
+            <tr><td colspan="6">No suppliers found.</td></tr>
+        }
+        else
+        {
+            @foreach (var s in suppliers)
+            {
+                <tr>
+                    <td><strong>@s.Name</strong></td>
+                    <td>@s.ContactPerson</td>
+                    <td>@s.Phone</td>
+                    <td>@s.Email</td>
+                    <td>@s.Address</td>
+                    <td>
+                        <form method="post" action="/suppliers/delete" data-enhance>
+                            <input type="hidden" name="SupplierId" value="@s.Id" />
+                            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromForm]
+    public Supplier NewSupplier { get; set; } = new();
+
+    private List<Supplier>? suppliers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        using var context = DbFactory.CreateDbContext();
+        suppliers = await context.Suppliers.OrderBy(s => s.Name).ToListAsync();
+    }
+
+    private async Task AddSupplier()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Suppliers.Add(NewSupplier);
+        await context.SaveChangesAsync();
+        
+        NewSupplier = new(); // Reset form
+        await LoadSuppliers(); // Refresh list
+    }
+}

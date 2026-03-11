@@ -1,8 +1,12 @@
-﻿@page "/products/delete"
+@page "/products/delete"
 @using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
+@using IMSDb.WebApp.Components.Models.Entities
+@using Microsoft.AspNetCore.Components.Authorization
+
 @inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Delete</PageTitle>
 
@@ -56,8 +60,23 @@
     private async Task DeleteProduct()
     {
         using var context = DbFactory.CreateDbContext();
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User.Identity?.Name ?? "Unknown";
+
+        context.ProductAudits.Add(new ProductAudit
+        {
+            ProductId = product!.Id,
+            ProductName = product.Name,
+            Action = "Delete",
+            ChangedBy = user,
+            Quantity = product.Quantity,
+            Price = (float)product.Price
+        });
+
         context.Product.Remove(product!);
         await context.SaveChangesAsync();
+
         NavigationManager.NavigateTo("/products");
     }
 }

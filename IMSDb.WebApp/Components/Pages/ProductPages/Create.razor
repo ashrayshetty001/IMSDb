@@ -1,8 +1,12 @@
-﻿@page "/products/create"
+@page "/products/create"
 @using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
+@using IMSDb.WebApp.Components.Models.Entities
+@using Microsoft.AspNetCore.Components.Authorization
+
 @inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Create</PageTitle>
 
@@ -46,7 +50,22 @@
     private async Task AddProduct()
     {
         using var context = DbFactory.CreateDbContext();
+        if (Product.Id == Guid.Empty) Product.Id = Guid.NewGuid();
         context.Product.Add(Product);
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User.Identity?.Name ?? "Unknown";
+
+        context.ProductAudits.Add(new ProductAudit
+        {
+            ProductId = Product.Id,
+            ProductName = Product.Name,
+            Action = "Create",
+            ChangedBy = user,
+            Quantity = Product.Quantity,
+            Price = (float)Product.Price
+        });
+
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/products");
     }

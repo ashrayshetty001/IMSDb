@@ -1,0 +1,140 @@
+@page "/purchase-orders"
+@using Microsoft.EntityFrameworkCore
+@using IMSDb.WebApp.Components.Models
+@using IMSDb.WebApp.Components.Models.Entities
+@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+
+<PageTitle>Purchase Orders</PageTitle>
+
+<h1>Purchase Orders</h1>
+<p>Track incoming stock orders from your vendors.</p>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-light">
+        <strong>Create Purchase Order</strong>
+    </div>
+    <div class="card-body">
+        <EditForm Model="NewOrder" OnValidSubmit="AddOrder" FormName="AddPurchaseOrderForm" method="post" Enhance>
+            <DataAnnotationsValidator />
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Supplier</label>
+                    <InputSelect @bind-Value="NewOrder.SupplierId" class="form-select">
+                        <option value="">-- Select Supplier --</option>
+                        @if (suppliers != null)
+                        {
+                            @foreach (var s in suppliers)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => NewOrder.SupplierId" class="text-danger" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Product</label>
+                    <InputSelect @bind-Value="NewOrder.ProductId" class="form-select">
+                        <option value="">-- Select Product --</option>
+                        @if (products != null)
+                        {
+                            @foreach (var p in products)
+                            {
+                                <option value="@p.Id">@p.Name</option>
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => NewOrder.ProductId" class="text-danger" />
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label>Quantity</label>
+                    <InputNumber @bind-Value="NewOrder.Quantity" class="form-control" />
+                    <ValidationMessage For="() => NewOrder.Quantity" class="text-danger" />
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Add Order</button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<h3>Order History</h3>
+<table class="table table-striped table-hover mt-3">
+    <thead class="table-dark">
+        <tr>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Product</th>
+            <th>Quantity Ordered</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (orders == null)
+        {
+            <tr><td colspan="4">Loading...</td></tr>
+        }
+        else if (!orders.Any())
+        {
+            <tr><td colspan="4">No purchase orders found.</td></tr>
+        }
+        else
+        {
+            @foreach (var o in orders)
+            {
+                <tr>
+                    <td>@o.OrderDate.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                    <td>@(o.Supplier?.Name ?? "Unknown")</td>
+                    <td>@(o.Product?.Name ?? "Unknown")</td>
+                    <td><strong>@o.Quantity</strong></td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    [SupplyParameterFromForm]
+    public PurchaseOrder NewOrder { get; set; } = new();
+
+    private List<PurchaseOrder>? orders;
+    private List<Supplier>? suppliers;
+    private List<Product>? products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        using var context = DbFactory.CreateDbContext();
+        suppliers = await context.Suppliers.OrderBy(s => s.Name).ToListAsync();
+        products = await context.Product.OrderBy(p => p.Name).ToListAsync();
+        orders = await context.PurchaseOrders
+            .Include(o => o.Supplier)
+            .Include(o => o.Product)
+            .OrderByDescending(o => o.OrderDate)
+            .ToListAsync();
+    }
+
+    private async Task AddOrder()
+    {
+        using var context = DbFactory.CreateDbContext();
+        
+        // When a custom PO is made, we do not auto-save anything until Db validation passes
+        context.PurchaseOrders.Add(NewOrder);
+        
+        // Also update product stock
+        var product = await context.Product.FindAsync(NewOrder.ProductId);
+        if (product != null)
+        {
+            product.Quantity += NewOrder.Quantity;
+        }
+
+        await context.SaveChangesAsync();
+        
+        NewOrder = new(); // Reset form
+        await LoadData(); // Refresh list
+    }
+}

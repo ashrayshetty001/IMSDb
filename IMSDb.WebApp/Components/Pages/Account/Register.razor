@@ -1,0 +1,95 @@
+@page "/register"
+
+@using IMSDb.WebApp.Data
+@using IMSDb.WebApp.ViewModels
+@using IMSDb.WebApp.Components.Models.Entities
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<MyAppDbContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<div class="row">
+
+    <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
+
+        <EditForm Model="@Model" OnValidSubmit="RegisterUser" FormName="RegisterForm" method="post">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3 text-center flex-column">
+                <img src="/images/avatar.png" style="max-height:5rem;" />
+                <h3>REGISTER</h3>
+            </div>
+
+            <div class="mb-3">
+                <label>User Name</label>
+                <InputText @bind-Value="Model.UserName" class="form-control" placeholder="Username" />
+                <ValidationMessage For="() => Model.UserName" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label>Password</label>
+                <InputText type="password" @bind-Value="Model.Password" class="form-control" placeholder="Password" />
+                <ValidationMessage For="() => Model.Password" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label>Confirm Password</label>
+                <InputText type="password" @bind-Value="Model.ConfirmPassword" class="form-control" placeholder="Confirm Password" />
+                <ValidationMessage For="() => Model.ConfirmPassword" class="text-danger" />
+            </div>
+
+            <div class="mb-3 text-center">
+                <span class="text-danger">@errorMessage</span>
+            </div>
+
+            <div class="mb-3 d-grid gap-2">
+                <button type="submit" class="btn btn-success">
+                    Register
+                </button>
+            </div>
+
+            <div class="text-center mt-3">
+                <span>Already have an account? <a href="/login">Login here</a></span>
+            </div>
+
+        </EditForm>
+
+    </div>
+
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public RegisterViewModel Model { get; set; } = new();
+
+    private string? errorMessage;
+
+    private async Task RegisterUser()
+    {
+        using var context = DbFactory.CreateDbContext();
+        
+        // Check if username already exists
+        var existingUser = await context.UserAccounts.FirstOrDefaultAsync(u => u.UserName == Model.UserName);
+        if (existingUser != null)
+        {
+            errorMessage = "Username is already taken. Please choose another one.";
+            return;
+        }
+
+        var newUser = new UserAccount
+        {
+            UserName = Model.UserName,
+            // WARNING: Password stored in plaintext for now to match current logic. Standard practice is to hash it.
+            Password = Model.Password,
+            Role = "User" // Default role for new registrations
+        };
+
+        context.UserAccounts.Add(newUser);
+        await context.SaveChangesAsync();
+
+        // Redirect to login upon successful registration
+        Navigation.NavigateTo("/login?registered=true");
+    }
+}
