@@ -1,5 +1,7 @@
 @page "/"
 @page "/dashboard"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
 @using IMSDb.WebApp.Components.Models.Entities
