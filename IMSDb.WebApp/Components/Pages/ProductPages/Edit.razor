@@ -1,21 +1,23 @@
 @page "/products/edit"
 @attribute [Authorize(Roles = "Administrator")]
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
 @using IMSDb.WebApp.Components.Models.Entities
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Data.SqlClient
+@using IMSDb.WebApp.Data
 
-@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+@inject DatabaseConnectionManager ConnectionManager
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<Edit> Logger
 
 <PageTitle>Edit</PageTitle>
 
 <h1>Edit</h1>
-
 <h2>Product</h2>
 <hr />
+
 @if (Product is null)
 {
     <p><em>Loading...</em></p>
@@ -26,7 +28,7 @@ else
         <div class="col-md-4">
             <EditForm method="post" Model="Product" OnValidSubmit="UpdateProduct" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
-                <ValidationSummary role="alert"/>
+                <ValidationSummary role="alert" />
                 <input type="hidden" name="Product.Id" value="@Product.Id" />
                 <div class="mb-3">
                     <label for="name" class="form-label">Name:</label>
@@ -50,8 +52,6 @@ else
     </div>
 }
 
-
-
 @code {
     [SupplyParameterFromQuery]
     private Guid Id { get; set; }
@@ -61,57 +61,88 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        using var context = DbFactory.CreateDbContext();
-        Product ??= await context.Product.FirstOrDefaultAsync(m => m.Id == Id);
-
-        if (Product is null)
+        try
         {
-            NavigationManager.NavigateTo("notfound");
+            if (Product == null)
+            {
+                using var conn = ConnectionManager.GetConnection();
+                await conn.OpenAsync();
+                var sql = "SELECT Id, Name, Quantity, Price FROM Product WHERE Id = @Id";
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@Id", Id);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    Product = new Product
+                    {
+                        Id = reader.GetGuid(0),
+                        Name = reader.GetString(1),
+                        Quantity = reader.GetInt32(2),
+                        Price = Convert.ToSingle(reader["Price"])
+                    };
+                }
+
+                if (Product is null)
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading product for edit.");
         }
     }
 
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateProduct()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Product!).State = EntityState.Modified;
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User.Identity?.Name ?? "Unknown";
-
-        context.ProductAudits.Add(new ProductAudit
-        {
-            ProductId = Product!.Id,
-            ProductName = Product.Name,
-            Action = "Update",
-            ChangedBy = user,
-            Quantity = Product.Quantity,
-            Price = (float)Product.Price
-        });
-
         try
         {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ProductExists(Product!.Id))
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User.Identity?.Name ?? "Unknown";
+
+            using var conn = ConnectionManager.GetConnection();
+            await conn.OpenAsync();
+            using var transaction = conn.BeginTransaction();
+
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                var updateSql = "UPDATE Product SET Name = @Name, Quantity = @Quantity, Price = @Price WHERE Id = @Id";
+                using (var cmd = new SqlCommand(updateSql, conn, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@Id", Product!.Id);
+                    cmd.Parameters.AddWithValue("@Name", Product.Name);
+                    cmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
+                    cmd.Parameters.AddWithValue("@Price", Product.Price);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                var auditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
+                                 VALUES (@ProductId, @ProductName, 'Update', @ChangedBy, @Quantity, @Price)";
+                using (var auditCmd = new SqlCommand(auditSql, conn, transaction))
+                {
+                    auditCmd.Parameters.AddWithValue("@ProductId", Product!.Id);
+                    auditCmd.Parameters.AddWithValue("@ProductName", Product.Name);
+                    auditCmd.Parameters.AddWithValue("@ChangedBy", user);
+                    auditCmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
+                    auditCmd.Parameters.AddWithValue("@Price", (float)Product.Price);
+                    await auditCmd.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                Logger.LogInformation("Product updated.");
+                NavigationManager.NavigateTo("/products");
             }
-            else
+            catch (Exception)
             {
+                await transaction.RollbackAsync();
                 throw;
             }
         }
-
-        NavigationManager.NavigateTo("/products");
-    }
-
-    private bool ProductExists(Guid id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return context.Product.Any(e => e.Id == id);
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating product.");
+        }
     }
 }

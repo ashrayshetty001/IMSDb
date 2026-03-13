@@ -1,8 +1,11 @@
 ﻿@page "/products/details"
-@using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
-@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+@using Microsoft.Data.SqlClient
+@using IMSDb.WebApp.Data
+
+@inject DatabaseConnectionManager ConnectionManager
 @inject NavigationManager NavigationManager
+@inject ILogger<Details> Logger
 
 <PageTitle>Details</PageTitle>
 
@@ -15,7 +18,8 @@
     {
         <p><em>Loading...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
             <dt class="col-sm-2">Name</dt>
             <dd class="col-sm-10">@product.Name</dd>
@@ -39,12 +43,35 @@
 
     protected override async Task OnInitializedAsync()
     {
-        using var context = DbFactory.CreateDbContext();
-        product = await context.Product.FirstOrDefaultAsync(m => m.Id == Id);
-
-        if (product is null)
+        try
         {
-            NavigationManager.NavigateTo("notfound");
+            using var conn = ConnectionManager.GetConnection();
+            await conn.OpenAsync();
+            
+            var sql = "SELECT Id, Name, Quantity, Price FROM Product WHERE Id = @Id";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", Id);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                product = new Product
+                {
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1),
+                    Quantity = reader.GetInt32(2),
+                    Price = Convert.ToSingle(reader["Price"])
+                };
+            }
+
+            if (product is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading product details.");
         }
     }
 }

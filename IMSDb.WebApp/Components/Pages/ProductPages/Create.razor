@@ -1,74 +1,105 @@
 @page "/products/create"
 @attribute [Authorize(Roles = "Administrator")]
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
 @using IMSDb.WebApp.Components.Models.Entities
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Data.SqlClient
+@using IMSDb.WebApp.Data
 
-@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+@inject DatabaseConnectionManager ConnectionManager
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<Create> Logger
 
 <PageTitle>Create</PageTitle>
 
 <h1>Create</h1>
-
 <h2>Product</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
         <EditForm method="post" Model="Product" OnValidSubmit="AddProduct" FormName="create" Enhance>
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert"/>
+            <ValidationSummary class="text-danger" role="alert" />
             <div class="mb-3">
-                <label for="name" class="form-label">Name:</label> 
-                <InputText id="name" @bind-Value="Product.Name" class="form-control" /> 
-                <ValidationMessage For="() => Product.Name" class="text-danger" /> 
-            </div>        
+                <label for="name" class="form-label">Name:</label>
+                <InputText id="name" @bind-Value="Product.Name" class="form-control" />
+                <ValidationMessage For="() => Product.Name" class="text-danger" />
+            </div>
             <div class="mb-3">
-                <label for="quantity" class="form-label">Quantity:</label> 
-                <InputNumber id="quantity" @bind-Value="Product.Quantity" class="form-control" /> 
-                <ValidationMessage For="() => Product.Quantity" class="text-danger" /> 
-            </div>        
+                <label for="quantity" class="form-label">Quantity:</label>
+                <InputNumber id="quantity" @bind-Value="Product.Quantity" class="form-control" />
+                <ValidationMessage For="() => Product.Quantity" class="text-danger" />
+            </div>
             <div class="mb-3">
-                <label for="price" class="form-label">Price:</label> 
-                <InputNumber id="price" @bind-Value="Product.Price" class="form-control" /> 
-                <ValidationMessage For="() => Product.Price" class="text-danger" /> 
-            </div>        
+                <label for="price" class="form-label">Price:</label>
+                <InputNumber id="price" @bind-Value="Product.Price" class="form-control" />
+                <ValidationMessage For="() => Product.Price" class="text-danger" />
+            </div>
             <button type="submit" class="btn btn-primary">Create</button>
             <a href="/products" class="btn btn-outline-secondary">Back to List</a>
         </EditForm>
     </div>
 </div>
 
-
-
 @code {
     [SupplyParameterFromForm]
     private Product Product { get; set; } = new();
 
-    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddProduct()
     {
-        using var context = DbFactory.CreateDbContext();
-        if (Product.Id == Guid.Empty) Product.Id = Guid.NewGuid();
-        context.Product.Add(Product);
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User.Identity?.Name ?? "Unknown";
-
-        context.ProductAudits.Add(new ProductAudit
+        try
         {
-            ProductId = Product.Id,
-            ProductName = Product.Name,
-            Action = "Create",
-            ChangedBy = user,
-            Quantity = Product.Quantity,
-            Price = (float)Product.Price
-        });
+            if (Product.Id == Guid.Empty) Product.Id = Guid.NewGuid();
 
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/products");
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User.Identity?.Name ?? "Unknown";
+
+            using var conn = ConnectionManager.GetConnection();
+            await conn.OpenAsync();
+            
+            using var transaction = conn.BeginTransaction();
+
+            try
+            {
+                var insertProductSql = "INSERT INTO Product (Id, Name, Quantity, Price) VALUES (@Id, @Name, @Quantity, @Price)";
+                using (var cmd = new SqlCommand(insertProductSql, conn, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@Id", Product.Id);
+                    cmd.Parameters.AddWithValue("@Name", Product.Name);
+                    cmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
+                    cmd.Parameters.AddWithValue("@Price", Product.Price);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                var insertAuditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
+                                       VALUES (@ProductId, @ProductName, 'Create', @ChangedBy, @Quantity, @Price)";
+                using (var auditCmd = new SqlCommand(insertAuditSql, conn, transaction))
+                {
+                    auditCmd.Parameters.AddWithValue("@ProductId", Product.Id);
+                    auditCmd.Parameters.AddWithValue("@ProductName", Product.Name);
+                    auditCmd.Parameters.AddWithValue("@ChangedBy", user);
+                    auditCmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
+                    auditCmd.Parameters.AddWithValue("@Price", (float)Product.Price);
+                    await auditCmd.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                
+                Logger.LogInformation("Product '{ProductName}' (Id: {ProductId}) was successfully created by {User}.", Product.Name, Product.Id, user);
+                
+                NavigationManager.NavigateTo("/products");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "A database error occurred while creating a new product.");
+        }
     }
 }

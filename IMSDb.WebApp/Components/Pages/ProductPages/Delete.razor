@@ -1,12 +1,14 @@
 @page "/products/delete"
-@using Microsoft.EntityFrameworkCore
 @using IMSDb.WebApp.Components.Models
 @using IMSDb.WebApp.Components.Models.Entities
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Data.SqlClient
+@using IMSDb.WebApp.Data
 
-@inject IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> DbFactory
+@inject DatabaseConnectionManager ConnectionManager
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<Delete> Logger
 
 <PageTitle>Delete</PageTitle>
 
@@ -20,7 +22,8 @@
     {
         <p><em>Loading...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
             <dt class="col-sm-2">Name</dt>
             <dd class="col-sm-10">@product.Name</dd>
@@ -35,7 +38,7 @@
         </dl>
         <EditForm method="post" Model="product" OnValidSubmit="DeleteProduct" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger" disabled="@(product is null)">Delete</button> |
-            <button><a href="/products" class="btn btn-outline-secondary">Back to List</a></button>
+            <a href="/products" class="btn btn-outline-secondary">Back to List</a>
         </EditForm>
     }
 </div>
@@ -48,35 +51,82 @@
 
     protected override async Task OnInitializedAsync()
     {
-        using var context = DbFactory.CreateDbContext();
-        product = await context.Product.FirstOrDefaultAsync(m => m.Id == Id);
-
-        if (product is null)
+        try
         {
-            NavigationManager.NavigateTo("notfound");
+            using var conn = ConnectionManager.GetConnection();
+            await conn.OpenAsync();
+            var sql = "SELECT Id, Name, Quantity, Price FROM Product WHERE Id = @Id";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", Id);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                product = new Product
+                {
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1),
+                    Quantity = reader.GetInt32(2),
+                    Price = Convert.ToSingle(reader["Price"])
+                };
+            }
+
+            if (product is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing Delete page.");
         }
     }
 
     private async Task DeleteProduct()
     {
-        using var context = DbFactory.CreateDbContext();
-        
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User.Identity?.Name ?? "Unknown";
-
-        context.ProductAudits.Add(new ProductAudit
+        try
         {
-            ProductId = product!.Id,
-            ProductName = product.Name,
-            Action = "Delete",
-            ChangedBy = user,
-            Quantity = product.Quantity,
-            Price = (float)product.Price
-        });
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User.Identity?.Name ?? "Unknown";
 
-        context.Product.Remove(product!);
-        await context.SaveChangesAsync();
+            using var conn = ConnectionManager.GetConnection();
+            await conn.OpenAsync();
+            using var transaction = conn.BeginTransaction();
 
-        NavigationManager.NavigateTo("/products");
+            try
+            {
+                var auditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
+                                 VALUES (@ProductId, @ProductName, 'Delete', @ChangedBy, @Quantity, @Price)";
+                using (var auditCmd = new SqlCommand(auditSql, conn, transaction))
+                {
+                    auditCmd.Parameters.AddWithValue("@ProductId", product!.Id);
+                    auditCmd.Parameters.AddWithValue("@ProductName", product.Name);
+                    auditCmd.Parameters.AddWithValue("@ChangedBy", user);
+                    auditCmd.Parameters.AddWithValue("@Quantity", product.Quantity);
+                    auditCmd.Parameters.AddWithValue("@Price", (float)product.Price);
+                    await auditCmd.ExecuteNonQueryAsync();
+                }
+
+                var deleteSql = "DELETE FROM Product WHERE Id = @Id";
+                using (var cmd = new SqlCommand(deleteSql, conn, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@Id", product!.Id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                Logger.LogInformation("Product deleted.");
+                NavigationManager.NavigateTo("/products");
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting product.");
+        }
     }
 }
