@@ -63,6 +63,7 @@
                     Price = Convert.ToSingle(reader["Price"])
                 };
             }
+            await conn.CloseAsync();
         }
         catch (Exception ex)
         {

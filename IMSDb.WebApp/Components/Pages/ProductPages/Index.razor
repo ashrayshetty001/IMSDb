@@ -28,16 +28,7 @@
     </TemplateColumn>
 </QuickGrid>
 
-@* @code {
-    private MyAppDbContext context = default!;
 
-    protected override void OnInitialized()
-    {
-        context = DbFactory.CreateDbContext();
-    }
-
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
-} *@
 @code {
     private MyAppDbContext context = default!;
 
@@ -46,7 +37,7 @@
         context = DbFactory.CreateDbContext();
     }
 
-    // Wrap the product set in an IQueryable for QuickGrid
+    
     private IQueryable<Product> Products => context.Product;
 
     public async ValueTask DisposeAsync() => await context.DisposeAsync();

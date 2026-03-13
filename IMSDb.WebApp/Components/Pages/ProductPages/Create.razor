@@ -70,7 +70,7 @@
             var user = authState.User.Identity?.Name ?? "Unknown";
 
             using var conn = ConnectionManager.GetConnection();
-            await conn.OpenAsync();
+            await conn?.OpenAsync();
             
             using var transaction = conn.BeginTransaction();
 
@@ -110,11 +110,19 @@
                 await transaction.RollbackAsync();
                 throw;
             }
+            finally
+            {
+                if (conn != null && conn.State == System.Data.ConnectionState.Open)
+                {
+                    await conn.CloseAsync();
+                }
+            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "A database error occurred while creating a new product.");
         }
+        
 
        
         if (isSuccess)

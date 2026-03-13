@@ -141,6 +141,13 @@ else
                 await transaction.RollbackAsync();
                 throw;
             }
+            finally
+            {
+                if (conn != null && conn.State == System.Data.ConnectionState.Open)
+                {
+                    await conn.CloseAsync();
+                }
+            }
         }
         catch (Exception ex)
         {

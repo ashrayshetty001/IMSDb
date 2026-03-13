@@ -48,6 +48,7 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
+
 {
     // In development expose the EF Core migrations endpoint and developer exception page
     app.UseMigrationsEndPoint();
