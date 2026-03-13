@@ -97,6 +97,7 @@ else
 
     private async Task UpdateProduct()
     {
+        bool isSuccess = false;
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -118,8 +119,8 @@ else
                     await cmd.ExecuteNonQueryAsync();
                 }
 
-                var auditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
-                                 VALUES (@ProductId, @ProductName, 'Update', @ChangedBy, @Quantity, @Price)";
+                var auditSql = @"INSERT INTO product_audits (ProductId, ProductName, Action, ChangedBy, Quantity, Price, ChangedAt) 
+                                 VALUES (@ProductId, @ProductName, 'Update', @ChangedBy, @Quantity, @Price, @ChangedAt)";
                 using (var auditCmd = new SqlCommand(auditSql, conn, transaction))
                 {
                     auditCmd.Parameters.AddWithValue("@ProductId", Product!.Id);
@@ -127,12 +128,13 @@ else
                     auditCmd.Parameters.AddWithValue("@ChangedBy", user);
                     auditCmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
                     auditCmd.Parameters.AddWithValue("@Price", (float)Product.Price);
+                    auditCmd.Parameters.AddWithValue("@ChangedAt", DateTime.UtcNow);
                     await auditCmd.ExecuteNonQueryAsync();
                 }
 
                 await transaction.CommitAsync();
                 Logger.LogInformation("Product updated.");
-                NavigationManager.NavigateTo("/products");
+                isSuccess = true;
             }
             catch (Exception)
             {
@@ -143,6 +145,11 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error updating product.");
+        }
+
+        if (isSuccess) 
+        {
+            NavigationManager.NavigateTo("/products");
         }
     }
 }

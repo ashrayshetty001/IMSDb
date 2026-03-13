@@ -102,8 +102,8 @@
 
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.Name, Model.UserName),
-            new Claim(ClaimTypes.Role, userAccount.Role)
+            new Claim(ClaimTypes.Name, Model.UserName ?? string.Empty),
+            new Claim(ClaimTypes.Role, userAccount.Role ?? string.Empty)
         };
 
         var identity = new ClaimsIdentity(

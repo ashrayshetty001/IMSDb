@@ -84,6 +84,7 @@
 
     private async Task DeleteProduct()
     {
+        bool isSuccess = false;
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -95,8 +96,8 @@
 
             try
             {
-                var auditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
-                                 VALUES (@ProductId, @ProductName, 'Delete', @ChangedBy, @Quantity, @Price)";
+                var auditSql = @"INSERT INTO product_audits (ProductId, ProductName, Action, ChangedBy, Quantity, Price, ChangedAt) 
+                                 VALUES (@ProductId, @ProductName, 'Delete', @ChangedBy, @Quantity, @Price, @ChangedAt)";
                 using (var auditCmd = new SqlCommand(auditSql, conn, transaction))
                 {
                     auditCmd.Parameters.AddWithValue("@ProductId", product!.Id);
@@ -104,6 +105,7 @@
                     auditCmd.Parameters.AddWithValue("@ChangedBy", user);
                     auditCmd.Parameters.AddWithValue("@Quantity", product.Quantity);
                     auditCmd.Parameters.AddWithValue("@Price", (float)product.Price);
+                    auditCmd.Parameters.AddWithValue("@ChangedAt", DateTime.UtcNow);
                     await auditCmd.ExecuteNonQueryAsync();
                 }
 
@@ -116,7 +118,7 @@
 
                 await transaction.CommitAsync();
                 Logger.LogInformation("Product deleted.");
-                NavigationManager.NavigateTo("/products");
+                isSuccess = true;
             }
             catch (Exception)
             {
@@ -127,6 +129,11 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error deleting product.");
+        }
+
+        if (isSuccess)
+        {
+            NavigationManager.NavigateTo("/products");
         }
     }
 }

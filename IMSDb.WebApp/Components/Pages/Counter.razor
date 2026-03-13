@@ -1,4 +1,4 @@
-﻿@page "/counter"
+@page "/counter"
 @attribute [Authorize(Roles="Administrator,user")]
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -34,7 +34,7 @@
 @code {
 
     [CascadingParameter]
-    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
 
     private int currentCount = 0;
 
@@ -45,9 +45,9 @@
 
     private async Task DisplayGreetingAlert()
     {
-        var authenticationState = await authenticationStateTask;
+        var authenticationState = await authenticationStateTask!;
 
-        var message = $"Hello {authenticationState.User.Identity.Name}!";
+        var message = $"Hello {authenticationState.User.Identity?.Name}!";
 
         await js.InvokeVoidAsync("alert", message);
     }

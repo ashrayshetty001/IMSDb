@@ -49,6 +49,7 @@
 
     private async Task AddProduct()
     {
+        bool isSuccess = false;
         try
         {
             if (Product.Id == Guid.Empty) Product.Id = Guid.NewGuid();
@@ -73,8 +74,8 @@
                     await cmd.ExecuteNonQueryAsync();
                 }
 
-                var insertAuditSql = @"INSERT INTO ProductAudits (ProductId, ProductName, Action, ChangedBy, Quantity, Price) 
-                                       VALUES (@ProductId, @ProductName, 'Create', @ChangedBy, @Quantity, @Price)";
+                var insertAuditSql = @"INSERT INTO product_audits (ProductId, ProductName, Action, ChangedBy, Quantity, Price, ChangedAt) 
+                                       VALUES (@ProductId, @ProductName, 'Create', @ChangedBy, @Quantity, @Price, @ChangedAt)";
                 using (var auditCmd = new SqlCommand(insertAuditSql, conn, transaction))
                 {
                     auditCmd.Parameters.AddWithValue("@ProductId", Product.Id);
@@ -82,6 +83,7 @@
                     auditCmd.Parameters.AddWithValue("@ChangedBy", user);
                     auditCmd.Parameters.AddWithValue("@Quantity", Product.Quantity);
                     auditCmd.Parameters.AddWithValue("@Price", (float)Product.Price);
+                    auditCmd.Parameters.AddWithValue("@ChangedAt", DateTime.UtcNow);
                     await auditCmd.ExecuteNonQueryAsync();
                 }
 
@@ -89,9 +91,9 @@
                 
                 Logger.LogInformation("Product '{ProductName}' (Id: {ProductId}) was successfully created by {User}.", Product.Name, Product.Id, user);
                 
-                NavigationManager.NavigateTo("/products");
+                isSuccess = true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
                 throw;
@@ -100,6 +102,11 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "A database error occurred while creating a new product.");
+        }
+
+        if (isSuccess) 
+        {
+            NavigationManager.NavigateTo("/products");
         }
     }
 }
