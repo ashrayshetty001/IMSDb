@@ -29,6 +29,7 @@
                 <div class="col-md-4 mb-3">
                     <label>Phone</label>
                     <InputText @bind-Value="NewSupplier.Phone" class="form-control" />
+                    <ValidationMessage For="() => NewSupplier.Phone" class="text-danger" />
                 </div>
                 <div class="col-md-6 mb-3">
                     <label>Email</label>
@@ -111,7 +112,7 @@
         context.Suppliers.Add(NewSupplier);
         await context.SaveChangesAsync();
         
-        NewSupplier = new(); // Reset form
-        await LoadSuppliers(); // Refresh list
+        NewSupplier = new(); 
+        await LoadSuppliers(); 
     }
 }

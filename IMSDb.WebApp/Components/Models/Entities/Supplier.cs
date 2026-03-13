@@ -17,7 +17,10 @@ namespace IMSDb.WebApp.Components.Models.Entities
         [MaxLength(100)]
         public string? ContactPerson { get; set; }
 
+        
+
         [MaxLength(20)]
+        [RegularExpression(@"^\+?[0-9\s\-]{10,15}$", ErrorMessage = "pls enter correct phone number")]
         public string? Phone { get; set; }
 
         [MaxLength(100)]
