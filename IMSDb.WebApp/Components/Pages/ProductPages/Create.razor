@@ -1,4 +1,6 @@
 @page "/products/create"
+
+@rendermode InteractiveServer
 @attribute [Authorize(Roles = "Administrator")]
 @using Microsoft.AspNetCore.Authorization
 @using IMSDb.WebApp.Components.Models
@@ -11,6 +13,7 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ILogger<Create> Logger
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Create</PageTitle>
 
@@ -49,6 +52,15 @@
 
     private async Task AddProduct()
     {
+        
+        bool isConfirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to create the product '{Product.Name}'?");
+        
+        
+        if (!isConfirmed)
+        {
+            return;
+        }
+
         bool isSuccess = false;
         try
         {
@@ -74,8 +86,8 @@
                     await cmd.ExecuteNonQueryAsync();
                 }
 
-                var insertAuditSql = @"INSERT INTO product_audits (ProductId, ProductName, Action, ChangedBy, Quantity, Price, ChangedAt) 
-                                       VALUES (@ProductId, @ProductName, 'Create', @ChangedBy, @Quantity, @Price, @ChangedAt)";
+                var insertAuditSql = @"INSERT INTO product_audits (ProductId, ProductName, Action, ChangedBy, Quantity, Price, ChangedAt)
+                                        VALUES (@ProductId, @ProductName, 'Create', @ChangedBy, @Quantity, @Price, @ChangedAt)";
                 using (var auditCmd = new SqlCommand(insertAuditSql, conn, transaction))
                 {
                     auditCmd.Parameters.AddWithValue("@ProductId", Product.Id);
@@ -104,7 +116,8 @@
             Logger.LogError(ex, "A database error occurred while creating a new product.");
         }
 
-        if (isSuccess) 
+       
+        if (isSuccess)
         {
             NavigationManager.NavigateTo("/products");
         }
