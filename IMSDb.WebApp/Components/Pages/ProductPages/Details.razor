@@ -1,4 +1,4 @@
-﻿@page "/products/details"
+@page "/products/details"
 @using IMSDb.WebApp.Components.Models
 @using Microsoft.Data.SqlClient
 @using IMSDb.WebApp.Data
@@ -63,15 +63,15 @@
                     Price = Convert.ToSingle(reader["Price"])
                 };
             }
-
-            if (product is null)
-            {
-                NavigationManager.NavigateTo("notfound");
-            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading product details.");
+        }
+
+        if (product is null)
+        {
+            NavigationManager.NavigateTo("notfound");
         }
     }
 }

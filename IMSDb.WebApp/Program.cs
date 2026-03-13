@@ -73,4 +73,16 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapPost("/suppliers/delete", async ([Microsoft.AspNetCore.Mvc.FromForm] int SupplierId, Microsoft.EntityFrameworkCore.IDbContextFactory<IMSDb.WebApp.Data.MyAppDbContext> dbFactory) =>
+{
+    using var db = await dbFactory.CreateDbContextAsync();
+    var supplier = await db.Suppliers.FindAsync(SupplierId);
+    if (supplier is not null)
+    {
+        db.Suppliers.Remove(supplier);
+        await db.SaveChangesAsync();
+    }
+    return Microsoft.AspNetCore.Http.Results.Redirect("/suppliers");
+}).DisableAntiforgery();
+
 app.Run();

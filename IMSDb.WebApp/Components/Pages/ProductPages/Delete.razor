@@ -70,15 +70,15 @@
                     Price = Convert.ToSingle(reader["Price"])
                 };
             }
-
-            if (product is null)
-            {
-                NavigationManager.NavigateTo("notfound");
-            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error initializing Delete page.");
+        }
+
+        if (product is null)
+        {
+            NavigationManager.NavigateTo("notfound");
         }
     }
 

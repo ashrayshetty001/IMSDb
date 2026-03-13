@@ -82,16 +82,16 @@ else
                         Price = Convert.ToSingle(reader["Price"])
                     };
                 }
-
-                if (Product is null)
-                {
-                    NavigationManager.NavigateTo("notfound");
-                }
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading product for edit.");
+        }
+
+        if (Product is null)
+        {
+            NavigationManager.NavigateTo("notfound");
         }
     }
 
