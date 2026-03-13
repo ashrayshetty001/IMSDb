@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using IMSDb.WebApp.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContextFactory<MyAppDbContext>(options =>
@@ -36,6 +37,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
